@@ -2,7 +2,9 @@ package main
 
 import (
 	"k8s.io/apimachinery/pkg/types"
-	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
+	schedulerapi "k8s.io/kube-scheduler/extender/v1"
+
+	//schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
 )
 
 type Bind struct {

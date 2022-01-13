@@ -25,54 +25,27 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |
-    apiVersion: kubescheduler.config.k8s.io/v1alpha1
+    apiVersion: kubescheduler.config.k8s.io/v1beta1
     kind: KubeSchedulerConfiguration
-    schedulerName: my-scheduler
-    algorithmSource:
-      policy:
-        configMap:
-          namespace: kube-system
-          name: my-scheduler-policy
     leaderElection:
-      leaderElect: true
-      lockObjectName: my-scheduler
-      lockObjectNamespace: kube-system
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: my-scheduler-policy
-  namespace: kube-system
-data:
- policy.cfg : |
-  {
-    "kind" : "Policy",
-    "apiVersion" : "v1",
-    "predicates" : [
-      {"name" : "PodFitsHostPorts"},
-      {"name" : "PodFitsResources"},
-      {"name" : "NoDiskConflict"},
-      {"name" : "MatchNodeSelector"},
-      {"name" : "HostName"}
-    ],
-    "priorities" : [
-      {"name" : "LeastRequestedPriority", "weight" : 1},
-      {"name" : "BalancedResourceAllocation", "weight" : 1},
-      {"name" : "ServiceSpreadingPriority", "weight" : 1},
-      {"name" : "EqualPriority", "weight" : 1}
-    ],
-    "extenders" : [{
-      "urlPrefix": "http://localhost/scheduler",
-      "filterVerb": "predicates/always_true",
-      "prioritizeVerb": "priorities/zero_score",
-      "preemptVerb": "preemption",
-      "bindVerb": "",
-      "weight": 1,
-      "enableHttps": false,
-      "nodeCacheCapable": false
-    }],
-    "hardPodAffinitySymmetricWeight" : 10
-  }
+      leaderElect: false
+    clientConnection:
+      kubeconfig: /etc/kubernetes/scheduler.conf
+    profiles:
+      - schedulerName: my-scheduler
+    extenders:
+      - urlPrefix: http://127.0.0.1/scheduler
+        filterVerb: predicates/always_true
+        prioritizeVerb: priorities/zero_score
+        preemptVerb: preemption
+        bindVerb: ""
+        enableHTTPS: false
+        managedResources:
+        - name: nchc.org/semaphore
+          ignoredByScheduler: true
+        nodeCacheCapable: false
+        ignorable: true
+        weight: 1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -92,14 +65,21 @@ spec:
         app: my-scheduler
     spec:
       serviceAccountName: my-scheduler
+      priorityClassName: system-node-critical
       volumes:
       - name: my-scheduler-config
         configMap:
           name: my-scheduler-config
+      - hostPath:
+            path: /etc/kubernetes/scheduler.conf
+            type: FileOrCreate
+        name: kubeconfig
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
       containers:
       - name: my-scheduler-ctr
-        image: gcr.io/google_containers/hyperkube:v1.16.3
-        imagePullPolicy: IfNotPresent
+        image: ogre0403/kube-scheduler:v20220107-v1.20.10-amd64
+        imagePullPolicy: Always
         args:
         - kube-scheduler
         - --config=/my-scheduler/config.yaml
@@ -107,9 +87,12 @@ spec:
         volumeMounts:
         - name: my-scheduler-config
           mountPath: /my-scheduler
+        - mountPath: /etc/kubernetes/scheduler.conf
+          name: kubeconfig
+          readOnly: true
       - name: my-scheduler-extender-ctr
-        image: a/b:c
-        imagePullPolicy: IfNotPresent
+        image: ogre0403/k8s-scheduler-extender-example:sample
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /version
@@ -120,4 +103,6 @@ spec:
             port: 80
         ports:
           - containerPort: 80
+---
+
 

@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	schedulerapi "k8s.io/kube-scheduler/extender/v1"
 	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
 
-	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
+	//schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
 )
 
 func checkBody(w http.ResponseWriter, r *http.Request) {
